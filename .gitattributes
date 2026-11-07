@@ -25,5 +25,8 @@
 
 # deploy 下的脚本与单元文件必须保持 LF，否则在 Linux 上会因 CRLF 报
 # "bad interpreter: No such file or directory" 而无法执行
-deploy/*.sh      text eol=lf
-deploy/*.service text eol=lf
+# 注意用 ** 递归匹配，否则 deploy/hertzbeat/ 等子目录下的脚本会被漏掉
+deploy/**/*.sh      text eol=lf
+deploy/**/*.service text eol=lf
+deploy/*.sh         text eol=lf
+deploy/*.service    text eol=lf
