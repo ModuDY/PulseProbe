@@ -18,8 +18,16 @@
     <description>第三方性能监控与诊断平台 - 融合服务（模块化单体）</description>
 
     <properties>
-        <java.version>21</java.version>
+        <!--
+          编译目标定为 17：目标服务器上唯一可用的运行时是 zing-dbx 容器内的
+          OpenJDK 17.0.20，且代码未使用任何 18+ 独占特性（仅 switch 箭头语法，
+          属 Java 14 特性）。Spring Boot 3.3.5 基线要求即 Java 17。
+        -->
+        <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- 前端产物目录；缺失时用 -Dskip.frontend=true 跳过，只打纯 API 包 -->
+        <frontend.dist>${project.basedir}/../fusion-frontend/dist</frontend.dist>
+        <skip.frontend>false</skip.frontend>
     </properties>
 
     <dependencies>
@@ -48,6 +56,33 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!--
+              把前端构建产物打进 jar 的 classpath:/static/，实现单文件部署。
+              服务器离线且无 nginx，因此由后端直接托管页面，避免额外的反向代理层。
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-frontend-dist</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skip.frontend}</skip>
+                            <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${frontend.dist}</directory>
+                                    <filtering>false</filtering>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

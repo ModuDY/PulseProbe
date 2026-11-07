@@ -1,0 +1,36 @@
+[Unit]
+Description=PulseProbe Fusion Service (monitoring fusion layer)
+Documentation=file:///opt/pulseprobe/README-DEPLOY.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/pulseprobe
+# 显式端口，避免环境变量被 Spring 宽松绑定覆盖
+ExecStart=/opt/pulseprobe/runtime/bin/java \
+    -Xms256m -Xmx768m \
+    -XX:+UseSerialGC \
+    -Dfile.encoding=UTF-8 \
+    -jar /opt/pulseprobe/fusion-backend.jar \
+    --server.port=8080
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+# 日志走 journald，便于 journalctl -u pulseprobe 查看
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pulseprobe
+
+# 轻量加固：服务只需读自身文件、写日志目录
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/pulseprobe/logs
+
+[Install]
+WantedBy=multi-user.target

@@ -22,3 +22,8 @@
 /.devcontainer export-ignore
 .gitattributes export-ignore  
 .gitignore export-ignore
+
+# deploy 下的脚本与单元文件必须保持 LF，否则在 Linux 上会因 CRLF 报
+# "bad interpreter: No such file or directory" 而无法执行
+deploy/*.sh      text eol=lf
+deploy/*.service text eol=lf
