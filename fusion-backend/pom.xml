@@ -19,11 +19,12 @@
 
     <properties>
         <!--
-          编译目标定为 17：目标服务器上唯一可用的运行时是 zing-dbx 容器内的
-          OpenJDK 17.0.20，且代码未使用任何 18+ 独占特性（仅 switch 箭头语法，
-          属 Java 14 特性）。Spring Boot 3.3.5 基线要求即 Java 17。
+          编译目标为 21（LTS）。运行时由本服务自带一套私有 JRE 21，位于
+          /opt/pulseprobe/runtime，仅本服务以绝对路径调用；不修改系统
+          JAVA_HOME / PATH，也不替换 /usr/bin/java，因此不影响服务器上
+          其他项目（zing-sci-server 用 JDK 8、zing-dbx 用 JDK 17）。
         -->
-        <java.version>17</java.version>
+        <java.version>21</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- 前端产物目录；缺失时用 -Dskip.frontend=true 跳过，只打纯 API 包 -->
         <frontend.dist>${project.basedir}/../fusion-frontend/dist</frontend.dist>
