@@ -11,7 +11,8 @@
 
 set -eu
 
-APP_HOME=$(cd "$(dirname "$0")" && pwd)
+# 默认以脚本所在目录为程序目录；需要时可 FUSION_HOME 指定
+APP_HOME="${FUSION_HOME:-$(cd "$(dirname "$0")" && pwd)}"
 APP_NAME="fusion-backend"
 JAR="$APP_HOME/fusion-backend.jar"
 PID_FILE="$APP_HOME/run/$APP_NAME.pid"

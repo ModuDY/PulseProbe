@@ -19,7 +19,8 @@
 
 set -eu
 
-APP_HOME="/opt/pulseprobe"
+# APP_HOME 允许被调用方（install-all.sh）通过环境变量覆盖，默认 /opt/pulseprobe
+APP_HOME="${APP_HOME:-/opt/pulseprobe}"
 RUNTIME="$APP_HOME/runtime"
 JAR="$APP_HOME/fusion-backend.jar"
 JRE_TGZ="${JRE_TGZ:-/tmp/OpenJDK21U-jre_x64_linux.tar.gz}"
