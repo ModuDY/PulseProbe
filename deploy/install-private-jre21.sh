@@ -1,29 +1,38 @@
 #!/bin/sh
 # PulseProbe 融合服务 — 私有 Java 21 隔离安装脚本
 #
-# 设计原则：本服务自带一套 JRE 21，只安装在 /opt/pulseprobe/runtime 下，
-# 仅通过绝对路径调用。绝不执行以下任何会波及其他项目的动作：
+# 设计原则：本服务自带一套 JRE 21，只安装在本服务自己的目录下（默认就是
+# 本脚本所在目录，即解压出来的地方），仅通过绝对路径调用。
+# 绝不执行以下任何会波及其他项目的动作：
 #   × 不修改 /usr/bin/java、/usr/lib/jvm、update-alternatives
 #   × 不修改系统环境变量 JAVA_HOME、PATH（不写 /etc/profile、/etc/environment）
 #   × 不安装任何 Debian 包（apt 主源指向 cdrom，本来就不可用）
 #   × 不启动容器（避免占用镜像与影响现有容器网络）
+#   × 不往本目录以外的位置写文件
 #
 # 现有运行时互不干扰：
 #   zing-sci-server  → 容器内 JDK 8  (/opt/jdk)
 #   zing-dbx         → 容器内 JDK 17 (Debian 12)
-#   PulseProbe       → /opt/pulseprobe/runtime（私有 JRE 21）
+#   PulseProbe       → <本脚本所在目录>/runtime（私有 JRE 21）
 #
 # 用法（在服务器上，需 root）：
+#   cd /zing/pulseprobe
 #   sh install-private-jre21.sh
 #   sh install-private-jre21.sh --check    # 只做环境检查，不安装
+#
+# 需要装到别处时显式指定：APP_HOME=/other/path sh install-private-jre21.sh
 
 set -eu
 
-# APP_HOME 允许被调用方（install-all.sh）通过环境变量覆盖，默认 /opt/pulseprobe
-APP_HOME="${APP_HOME:-/opt/pulseprobe}"
+# 默认就地：程序目录 = 本脚本所在目录。install-all.sh 也会显式传 APP_HOME。
+SELF_DIR=$(cd "$(dirname "$0")" && pwd)
+APP_HOME="${APP_HOME:-$SELF_DIR}"
 RUNTIME="$APP_HOME/runtime"
 JAR="$APP_HOME/fusion-backend.jar"
-JRE_TGZ="${JRE_TGZ:-/tmp/OpenJDK21U-jre_x64_linux.tar.gz}"
+# JRE 包默认取同目录下的文件名（就地部署时它就在旁边）
+JRE_TGZ="${JRE_TGZ:-$SELF_DIR/OpenJDK21U-jre_x64_linux.tar.gz}"
+# 兼容旧路径：同目录没有时退回 /tmp
+[ -f "$JRE_TGZ" ] || JRE_TGZ="/tmp/OpenJDK21U-jre_x64_linux.tar.gz"
 
 info() { printf '[信息] %s\n' "$*"; }
 warn() { printf '[警告] %s\n' "$*"; }

@@ -1,11 +1,36 @@
 # PulseProbe 融合服务 — 离线部署手册
 
 > 交付包：`pulseprobe-1.0.0.tar.gz`（约 70 MB，单文件）
-> 目标机：Debian 11 / x86_64 / glibc 2.31 / 完全离线 / 已装 JDK8+JDK17 的其他项目在跑
+> **安装方式：就地安装**——你解压在哪里，服务就装在哪里，不创建 `/opt` 目录，不往别处写文件
+> 目标机：Debian 11 / x86_64 / glibc 2.31 / 完全离线 / 已有 JDK8+JDK17 的其他项目在跑
 
 ---
 
-## 一、这个方案解决什么问题
+## 一、目录约定（最重要的一条）
+
+```
+你解压的目录/                  ← 程序目录（jar、脚本都在这里，就地安装不搬迁）
+├── fusion-backend.jar          后端 + 已内置前端页面
+├── OpenJDK21U-jre_x64_linux.tar.gz
+├── install-all.sh              一键安装
+├── install-private-jre21.sh    私有 JRE 安装
+├── fusion.sh                   启停脚本
+├── SHA256SUMS                  校验清单
+├── README-DEPLOY.md            本文档
+│   —— 以下是安装后新出现的，不会在上层或别处生成 ——
+├── runtime/                    私有 JRE 21（只在这里）
+├── logs/                       运行日志
+├── run/                        pid 文件
+└── pulseprobe.service          按实际路径生成的 systemd 单元
+```
+
+**没有任何东西会被写到 `/opt/pulseprobe` 或别的位置。** 删掉这个目录即彻底卸载。
+
+如需装到别处，显式指定：`APP_HOME=/srv/pp sh install-all.sh`。默认使用解压目录。
+
+---
+
+## 二、这个方案解决什么问题
 
 服务器上已有两个**不同版本**的 Java 在跑别人的项目，且**宿主机本身没有 Java**：
 
@@ -13,7 +38,7 @@
 |---|---|---|
 | `zing-sci-server`（业务） | JDK 8 (1.8.0_202) | 容器内 `/opt/jdk` |
 | `zing-dbx` | JDK 17 (17.0.20) | 容器内 `/usr/lib/jvm`（Debian 12） |
-| **PulseProbe（本服务）** | **JRE 21 (21.0.13)** | **`/opt/pulseprobe/runtime`（私有）** |
+| **PulseProbe** | **JRE 21 (21.0.13)** | **`<解压目录>/runtime`（私有）** |
 
 因此本服务**自带一套 JRE 21**，只用绝对路径调用，**不碰系统 Java**：
 
@@ -22,21 +47,20 @@
 - × 不安装 Debian 包（apt 主源指向 cdrom，本来就不可用）
 - × 不启动/修改任何容器，不占用镜像，不下载任何东西
 
-`fusion.sh` 的运行时解析顺序被**刻意收紧**：只用 `runtime/bin/java`，未安装时**直接报错退出**，
-不会悄悄回退到系统 Java（避免哪天系统装了别的 JDK 后本服务被静默换成错误版本）。
+`fusion.sh` 的运行时解析被**刻意收紧**：只用同目录的 `runtime/bin/java`，未安装时**直接报错退出**，
+不会悄悄回退到系统 Java。
 
 ---
 
-## 二、包内文件
+## 三、包内文件
 
 | 文件 | 大小 | 用途 |
 |---|---|---|
 | `fusion-backend.jar` | 24 MB | 后端 + **已内置前端页面** |
 | `OpenJDK21U-jre_x64_linux.tar.gz` | 50 MB | Temurin **21.0.13+9** 私有 JRE |
-| `install-all.sh` | 3.8 KB | **一键安装**（清点 → 校验 → 落盘 → 装 JRE） |
-| `install-private-jre21.sh` | 7 KB | 私有 JRE 安装（含 `--check` 干跑） |
-| `fusion.sh` | 4.2 KB | 启停脚本（start/stop/restart/status） |
-| `pulseprobe.service` | 0.9 KB | systemd 单元（可选开机自启） |
+| `install-all.sh` | 5.9 KB | **一键就地安装**（清点 → 校验 → 装 JRE → 生成 unit） |
+| `install-private-jre21.sh` | 7.7 KB | 私有 JRE 安装（含 `--check` 干跑） |
+| `fusion.sh` | 4.3 KB | 启停脚本（start/stop/restart/status） |
 | `SHA256SUMS` | — | 校验清单 |
 | `README-DEPLOY.md` | — | 本文档 |
 
@@ -45,7 +69,9 @@
 
 ---
 
-## 三、传输（在本机执行）
+## 四、部署三步
+
+### 4.1 传输（在本机执行）
 
 服务器完全离线，**只能由本机推送**。
 
@@ -54,54 +80,50 @@ cd <本机交付包目录>
 scp pulseprobe-1.0.0.tar.gz root@199.199.5.151:/tmp/
 ```
 
-约 70 MB，视链路 1~5 分钟。
-
----
-
-## 四、安装（在服务器上执行）
-
-### 4.1 解包
+### 4.2 解压到你想放的位置
 
 ```bash
-cd /tmp
-tar -xzf pulseprobe-1.0.0.tar.gz
-cd /tmp/pulseprobe
+cd /zing                      # 放哪都行，这里以 /zing 为例
+tar -xzf /tmp/pulseprobe-1.0.0.tar.gz
+cd /zing/pulseprobe
 ls -l
 ```
 
-应看到 8 个文件，其中 3 个 `.sh` 带回 `rwx` 权限（包内已保留执行位）。
+应看到 7 个文件，3 个 `.sh` 带回 `rwx` 权限（包内已保留执行位）。
 
-### 4.2 干跑检查（不改动任何东西）
-
-```bash
-sh install-all.sh --check
-```
-
-输出会先做**逐文件 SHA256 校验**，再打印目标目录、磁盘、当前用户、8080 占用情况。
-确认无误再继续。
-
-### 4.3 正式安装
+### 4.3 安装（就在这个目录里执行）
 
 ```bash
-sh install-all.sh
+cd /zing/pulseprobe
+sh install-all.sh --check     # 干跑：只清点+校验+打印目标，不改动任何东西
+sh install-all.sh             # 正式安装
 ```
 
-一键完成：校验完整性 → 创建 `/opt/pulseprobe` → 复制 jar 与脚本 → 调用私有 JRE 安装
-→ 验证 `java -version` 为 21 → 打印系统 Java 是否被改动（预期"未被改动"）。
+`--check` 输出示例（注意路径就是解压目录）：
 
-预期输出关键片段：
+```
+[信息] == 目标环境 ==（仅检查，未做任何改动）
+  程序目录(APP_HOME) = /zing/pulseprobe
+  私有运行时         = /zing/pulseprobe/runtime
+  日志               = /zing/pulseprobe/logs
+```
+
+正式安装会依次：逐文件 SHA256 校验 → 建 `runtime/`、`logs/`、`run/` → 解压私有 JRE
+→ 验证 `java -version` 为 21 → 打印系统 Java 是否被改动 → 按实际路径生成 `pulseprobe.service`。
+
+预期关键片段：
 
 ```
 [信息] 全部文件校验通过
-[信息] == 创建 /opt/pulseprobe ==
-[信息] == 安装私有 JRE 21（隔离，仅落 /opt/pulseprobe/runtime） ==
+[信息] == 准备目录（就地，不搬迁）==
+  程序目录 : /zing/pulseprobe
+[信息] == 程序文件已就位（就地安装，无需复制）==
+[信息] == 安装私有 JRE 21 → /zing/pulseprobe/runtime ==
 [信息] 压缩包完整
 [信息] 解压完成
-== 验证私有运行时 ==
-openjdk version "21.0.13" 2026-10-20 LTS
-私有 JRE 版本 21 校验通过
-== 确认未污染系统环境 ==
-/usr/bin/java 仍不存在，系统 Java 未被改动（预期）
+[信息] 私有 JRE 版本 21 校验通过
+[信息] /usr/bin/java 仍不存在，系统 Java 未被改动（预期）
+[信息] == 生成 systemd 单元（按实际路径）==
 [信息] ============ 安装完成 ============
 ```
 
@@ -109,19 +131,19 @@ openjdk version "21.0.13" 2026-10-20 LTS
 > `legal/` 下有 145 个相对符号链接，某些文件系统下创建失败），**不影响运行**。
 > 脚本以 `runtime/bin/java` 和 `lib/server/libjvm.so` 是否就位为成功判据，会自动继续。
 
-安装后占用约 **182 MB**（jar 24 MB + runtime 159 MB）。
+安装后该目录占用约 **182 MB**（jar 24 + runtime 159）。
 
 ### 4.4 启动
 
 ```bash
-cd /opt/pulseprobe
+cd /zing/pulseprobe
 ./fusion.sh start
 ```
 
 预期：
 
 ```
-使用 JRE: /opt/pulseprobe/runtime/bin/java
+使用 JRE: /zing/pulseprobe/runtime/bin/java
   openjdk version "21.0.13" 2026-10-20 LTS
 监听端口: 8080
 已启动，PID=xxxx
@@ -168,40 +190,45 @@ curl -s "http://127.0.0.1:8080/api/v1/overview?siteId=$SITE&environment=pilot&st
 
 ```bash
 # 1) 私有运行时确实是 21
-/opt/pulseprobe/runtime/bin/java -version
+/zing/pulseprobe/runtime/bin/java -version
 
 # 2) 系统 Java 未被改动
 ls -l /usr/bin/java 2>/dev/null || echo "系统未安装 java（未被本服务改动）"
 echo "JAVA_HOME=${JAVA_HOME:-<未设置>}"
 
 # 3) 进程确实用私有运行时 ← 最硬的证据
-PID=$(cat /opt/pulseprobe/run/fusion-backend.pid)
+PID=$(cat /zing/pulseprobe/run/fusion-backend.pid)
 ls -l /proc/$PID/exe
-# 期望: -> /opt/pulseprobe/runtime/bin/java
+# 期望: -> /zing/pulseprobe/runtime/bin/java
 
 # 4) 别人的容器都还活着
 docker ps --format '{{.Names}} | {{.Status}}'
 ```
 
-第 3 条最关键：`/proc/<pid>/exe` 指向 `runtime/bin/java`，即证明进程运行在私有 JRE 里，
-与系统及容器的 JDK 完全无关。
+第 3 条最关键：`/proc/<pid>/exe` 指向解压目录下的 `runtime/bin/java`，即证明进程运行在
+私有 JRE 里，与系统及容器的 JDK 完全无关。
 
 ---
 
 ## 七、日常运维
 
 ```bash
-cd /opt/pulseprobe
+cd /zing/pulseprobe
 ./fusion.sh status      # 状态 + 健康检查
 ./fusion.sh restart     # 重启
 ./fusion.sh stop        # 停止
 tail -f logs/fusion-backend.out   # 实时日志
 ```
 
+`fusion.sh` 按**脚本自身所在目录**定位一切，所以目录整体搬走也能继续用
+（或在任意位置 `FUSION_HOME=/zing/pulseprobe ./fusion.sh start`）。
+
 ### 可选：开机自启
 
+安装时已按实际路径生成 `pulseprobe.service`，直接用：
+
 ```bash
-cd /opt/pulseprobe
+cd /zing/pulseprobe
 ./fusion.sh stop                                    # 先停，避免抢 8080
 cp pulseprobe.service /etc/systemd/system/
 systemctl daemon-reload
@@ -210,9 +237,10 @@ systemctl status pulseprobe --no-pager
 journalctl -u pulseprobe -f
 ```
 
-systemd 单元同样用**绝对路径** `/opt/pulseprobe/runtime/bin/java`，不设 `JAVA_HOME`。
+systemd 单元用**绝对路径** `<解压目录>/runtime/bin/java`，不设 `JAVA_HOME`。
 
 > **两种方式不要同时启用**，会争用 8080。
+> **目录搬家后**需要重新生成 unit：删掉旧的 `pulseprobe.service`，重跑 `sh install-all.sh`。
 
 ### 运行参数
 
@@ -230,25 +258,40 @@ systemd 单元同样用**绝对路径** `/opt/pulseprobe/runtime/bin/java`，不
 
 ---
 
-## 八、故障排查
+## 八、卸载
+
+直接删目录即可，系统层面零残留：
+
+```bash
+cd /zing/pulseprobe && ./fusion.sh stop
+systemctl disable --now pulseprobe 2>/dev/null   # 若曾启用 systemd
+rm -f /etc/systemd/system/pulseprobe.service
+systemctl daemon-reload
+rm -rf /zing/pulseprobe
+```
+
+---
+
+## 九、故障排查
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
-| `[错误] 需要 root 权限` | 非 root 执行 | 用 root 或 `sudo sh install-all.sh` |
+| `[错误] 需要 root 权限` | 非 root 执行 | 用 root 执行 |
 | `校验失败` | 传输中断 | 重新传整个 tar.gz，再解包 |
-| `未找到私有 Java 运行时` | 未执行 4.3 | 执行 `sh install-all.sh` |
+| `[错误] 程序目录不存在` | `APP_HOME` 指错 | 不传 `APP_HOME` 即默认就地 |
+| `未找到私有 Java 运行时` | 未执行 4.3 | 在解压目录执行 `sh install-all.sh` |
 | `解压后未找到 runtime/bin/java` | 包结构异常 | 确认 `gzip -t` 通过 |
 | `私有运行时版本不是 21` | 放错包 | 检查 `JRE_TGZ` 指向的文件 |
 | 解压时 `Cannot create symlink` | legal/ 符号链接受限 | **可忽略**，不影响运行 |
 | `GLIBC_2.xx not found` | 极少见（Temurin 21 只需 2.15） | 确认是官方 Adoptium 构建 |
-| 页面 404、接口正常 | 前端未打进 jar | 本机重新构建（见第九节） |
+| 页面 404、接口正常 | 前端未打进 jar | 本机重新构建（见第十节） |
 | `500 服务内部错误` | `overview`/`relations` 参数缺失 | 见 5.2，带齐参数 |
 | 端口被占用 | 已有进程或 `SERVER__PORT` | `ss -tlnp \| grep 8080` |
 | 启动即退出 | 内存不足/参数错误 | 看 `logs/fusion-backend.out` 末尾 |
 
 ---
 
-## 九、本机重新构建
+## 十、本机重新构建
 
 ```bash
 cd fusion-frontend && npm install && npm run build            # 产出 dist/
@@ -263,14 +306,14 @@ cd ../fusion-backend && mvn -o clean package -DskipTests      # 自动把 dist �
 ```bash
 cd <包目录>
 sha256sum fusion-backend.jar OpenJDK21U-jre_x64_linux.tar.gz \
-  install-all.sh install-private-jre21.sh fusion.sh pulseprobe.service README-DEPLOY.md \
+  install-all.sh install-private-jre21.sh fusion.sh README-DEPLOY.md \
   > SHA256SUMS
 cd .. && tar --owner=0 --group=0 --numeric-owner -cf - pulseprobe | gzip -9 > pulseprobe-1.0.0.tar.gz
 ```
 
 ---
 
-## 十、必须知情的部署边界
+## 十一、必须知情的部署边界
 
 这套服务**能跑起来**，但它是「契约骨架 + 合成数据」，**不是可用的监控系统**。
 
