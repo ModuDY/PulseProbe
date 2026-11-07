@@ -1,0 +1,2428 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Third-party monitoring fusion API",
+    "version": "0.1.0-design",
+    "description": "Proposed API for the custom fusion service, not an API specification for HertzBeat or SkyWalking. No live integration has been verified. All requests require server-side asset authorization. Times use RFC 3339 with timezone and are normalized to UTC. Partial upstream failures return explicit source status; absent measurements must not become zero. Examples, if later added, must be clearly labeled synthetic."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same-origin authenticated monitoring gateway"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/v1/providers": {
+      "get": {
+        "operationId": "listProviders",
+        "summary": "List provider health and verified capabilities",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProvidersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        }
+      }
+    },
+    "/api/v1/assets": {
+      "get": {
+        "operationId": "listAssets",
+        "summary": "List authorized assets",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "host",
+                "container",
+                "service",
+                "service_instance",
+                "database"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/assets/{assetId}/relations": {
+      "get": {
+        "operationId": "getAssetRelations",
+        "summary": "Get asset relations valid at the selected time",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "at",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/overview": {
+      "get": {
+        "operationId": "getOverview",
+        "summary": "Get a partial-failure-aware overview",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/metrics/query": {
+      "post": {
+        "operationId": "queryMetrics",
+        "summary": "Query bounded, normalized metric series",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricQueryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetricQuery"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/services/{serviceId}/endpoints": {
+      "get": {
+        "operationId": "listEndpoints",
+        "summary": "List endpoint aggregates with explicit sampling scope",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndpointsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "description": "Optional sorting and pagination must be supported by the pinned upstream contract; otherwise return CAPABILITY_UNSUPPORTED.",
+        "parameters": [
+          {
+            "name": "serviceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "providerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "p95_desc",
+                "rate_desc",
+                "error_rate_desc"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/traces": {
+      "get": {
+        "operationId": "listTraces",
+        "summary": "List stored trace samples",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "description": "Default maximum query window is 24 hours, further limited by provider retention/capabilities. Never scan all traces to emulate an unsupported filter.",
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "serviceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          },
+          {
+            "name": "minDurationMs",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "endpointId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/traces/{traceId}": {
+      "get": {
+        "operationId": "getTrace",
+        "summary": "Get a redacted trace from an explicitly selected provider",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "traceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          {
+            "name": "providerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/diagnosis/query": {
+      "post": {
+        "operationId": "queryDiagnosis",
+        "summary": "Correlate evidence without claiming a confirmed cause",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiagnosisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiagnosisQuery"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/incidents": {
+      "get": {
+        "operationId": "listIncidents",
+        "summary": "List normalized incidents",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "siteId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "acknowledged",
+                "resolved"
+              ]
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 with timezone; normalized to UTC."
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/incidents/{incidentId}/ack": {
+      "post": {
+        "operationId": "acknowledgeIncident",
+        "summary": "Acknowledge an incident without resolving it",
+        "x-required-role": "operator",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "409": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "description": "Acknowledgement is idempotent. A resolved incident returns 409 rather than being reopened.",
+        "parameters": [
+          {
+            "name": "incidentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "comment": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "description": "Do not include patient information or credentials."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports": {
+      "post": {
+        "operationId": "createReport",
+        "summary": "Queue a redacted diagnostic report snapshot",
+        "x-required-role": "operator",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{reportId}": {
+      "get": {
+        "operationId": "getReport",
+        "summary": "Read report state and snapshot",
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/v1/ingest/alerts/{providerId}": {
+      "post": {
+        "operationId": "ingestProviderAlerts",
+        "summary": "Durably accept authenticated provider alerts",
+        "x-required-role": "provider",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "401": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "429": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "413": {
+            "$ref": "#/components/responses/ApiError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ApiError"
+          }
+        },
+        "description": "Body shape is fixed by each verified provider adapter. Maximum 256 KiB. A trusted internal proxy may add the provider credential when the source cannot. Redact before persistence/logging. Acknowledge only after durable storage; retries are deduplicated.",
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": true
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "providerToken": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Platform session/access token; exact identity integration is an implementation gate."
+      },
+      "providerToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Provider-Token",
+        "description": "Provider-specific credential, bound to providerId. Keep on internal authenticated routes."
+      }
+    },
+    "responses": {
+      "ApiError": {
+        "description": "Redacted API error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "TimeRange": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Start inclusive, end exclusive; start must precede end. Provider-specific retention and range limits apply.",
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "SampleScope": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "sampled",
+              "unknown",
+              "not_applicable"
+            ]
+          },
+          "ratio": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Only set when the actual sampling ratio is known."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "SourceState": {
+        "type": "object",
+        "properties": {
+          "providerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "stale",
+              "unavailable",
+              "unsupported"
+            ]
+          },
+          "sourceCollectedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC.",
+            "nullable": true
+          },
+          "ageSeconds": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Redacted diagnostic message."
+          }
+        },
+        "required": [
+          "providerId",
+          "state",
+          "sourceCollectedAt"
+        ]
+      },
+      "Provider": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "hertzbeat",
+              "skywalking"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/SourceState"
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "supported",
+                "unsupported",
+                "unverified"
+              ]
+            }
+          }
+        },
+        "description": "No credentials or secret-bearing URLs are returned.",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "state",
+          "capabilities"
+        ]
+      },
+      "Asset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "siteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "environment": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "host",
+              "container",
+              "service",
+              "service_instance",
+              "database"
+            ],
+            "description": "service_instance is one running replica of a service; it is a first-class asset so multi-replica latency can be attributed to a single pod/process."
+          },
+          "parentAssetId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Structural parent: a service_instance points at its service; a container points at the host that runs it. Null for root assets. Must not encode runtime-only relationships."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "labels": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 256
+            }
+          }
+        },
+        "required": [
+          "id",
+          "siteId",
+          "environment",
+          "type",
+          "name"
+        ]
+      },
+      "AssetRelation": {
+        "type": "object",
+        "properties": {
+          "fromAssetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "toAssetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "runs_on",
+              "connects_to",
+              "contains"
+            ]
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          },
+          "validTo": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC.",
+            "nullable": true
+          }
+        },
+        "required": [
+          "fromAssetId",
+          "toAssetId",
+          "type",
+          "validFrom",
+          "validTo"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceState"
+            }
+          }
+        },
+        "required": [
+          "requestId",
+          "code",
+          "message"
+        ]
+      },
+      "ProvidersResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Provider"
+            }
+          }
+        },
+        "required": [
+          "requestId",
+          "items"
+        ]
+      },
+      "AssetsResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "requestId",
+          "items",
+          "nextCursor"
+        ]
+      },
+      "RelationsResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetRelation"
+            }
+          }
+        },
+        "required": [
+          "requestId",
+          "items"
+        ]
+      },
+      "MetricPoint": {
+        "type": "object",
+        "properties": {
+          "time": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          },
+          "value": {
+            "type": "number",
+            "nullable": true
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "no_data",
+              "reset",
+              "stale",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "time",
+          "value",
+          "quality"
+        ]
+      },
+      "MetricSeries": {
+        "type": "object",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "metricId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "providerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "gauge",
+              "counter",
+              "derived"
+            ]
+          },
+          "sourceCollectedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC.",
+            "nullable": true
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "partial",
+              "no_data",
+              "stale",
+              "unknown",
+              "unsupported"
+            ]
+          },
+          "sampleScope": {
+            "$ref": "#/components/schemas/SampleScope"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricPoint"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "assetId",
+          "metricId",
+          "providerId",
+          "unit",
+          "kind",
+          "sourceCollectedAt",
+          "quality",
+          "sampleScope",
+          "points"
+        ]
+      },
+      "MetricQuery": {
+        "type": "object",
+        "properties": {
+          "assetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 10,
+            "uniqueItems": true
+          },
+          "metricIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "minItems": 1,
+            "maxItems": 20,
+            "uniqueItems": true
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "stepSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "maxPoints": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 1000
+          }
+        },
+        "additionalProperties": false,
+        "description": "At most 10 assets x 20 metrics = 200 combinations, matching MetricQueryResponse.series maxItems so a valid request is never silently truncated. Requested points per series are rangeSeconds / stepSeconds; the server must reject the request with RANGE_TOO_DENSE when that exceeds maxPoints rather than silently downsampling. Fine-grained queries default to at most 6 hours. Larger ranges require verified rollup support. Unsupported combinations return explicit quality, not zero.",
+        "required": [
+          "assetIds",
+          "metricIds",
+          "range",
+          "stepSeconds"
+        ]
+      },
+      "MetricQueryResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceState"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricSeries"
+            },
+            "maxItems": 200
+          },
+          "combinationsRequested": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "assetIds x metricIds of the request. Equal to series length when no combination was dropped; a smaller series length means the response was capped and truncated must be true."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True only when series had to be capped. Clients must surface this instead of assuming full coverage."
+          }
+        },
+        "required": [
+          "requestId",
+          "range",
+          "partial",
+          "sources",
+          "series",
+          "combinationsRequested",
+          "truncated"
+        ]
+      },
+      "OverviewSignal": {
+        "type": "object",
+        "properties": {
+          "metricId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "providerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "value": {
+            "type": "number",
+            "nullable": true
+          },
+          "unit": {
+            "type": "string"
+          },
+          "sourceCollectedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC.",
+            "nullable": true
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "partial",
+              "no_data",
+              "stale",
+              "unknown",
+              "unsupported"
+            ]
+          },
+          "sampleScope": {
+            "$ref": "#/components/schemas/SampleScope"
+          }
+        },
+        "required": [
+          "metricId",
+          "providerId",
+          "value",
+          "unit",
+          "sourceCollectedAt",
+          "quality",
+          "sampleScope"
+        ]
+      },
+      "OverviewCard": {
+        "type": "object",
+        "properties": {
+          "asset": {
+            "$ref": "#/components/schemas/Asset"
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "warning",
+              "critical",
+              "unknown"
+            ]
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewSignal"
+            }
+          }
+        },
+        "required": [
+          "asset",
+          "health",
+          "signals"
+        ]
+      },
+      "OverviewResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceState"
+            }
+          },
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OverviewCard"
+            }
+          }
+        },
+        "required": [
+          "requestId",
+          "range",
+          "partial",
+          "sources",
+          "cards"
+        ]
+      },
+      "Endpoint": {
+        "type": "object",
+        "properties": {
+          "endpointId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "requestRate": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "description": "Requests per second; null if unsupported."
+          },
+          "errorRate": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1
+          },
+          "p95Ms": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0
+          },
+          "sampleScope": {
+            "$ref": "#/components/schemas/SampleScope"
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "partial",
+              "no_data",
+              "stale",
+              "unknown",
+              "unsupported"
+            ]
+          }
+        },
+        "required": [
+          "endpointId",
+          "name",
+          "requestRate",
+          "errorRate",
+          "p95Ms",
+          "sampleScope",
+          "quality"
+        ]
+      },
+      "EndpointsResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceState"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Endpoint"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "description": "Sort/filter/pagination are available only if the verified upstream capability supports them.",
+        "required": [
+          "requestId",
+          "range",
+          "partial",
+          "sources",
+          "items",
+          "nextCursor"
+        ]
+      },
+      "TraceSummary": {
+        "type": "object",
+        "properties": {
+          "providerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "traceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "serviceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "endpointName": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          },
+          "durationMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "error": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "sampleScope": {
+            "$ref": "#/components/schemas/SampleScope"
+          }
+        },
+        "required": [
+          "providerId",
+          "traceId",
+          "serviceId",
+          "endpointName",
+          "startTime",
+          "durationMs",
+          "error",
+          "sampleScope"
+        ]
+      },
+      "Span": {
+        "type": "object",
+        "properties": {
+          "segmentId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Upstream segment/scope identifier. Required for addressing spans, because spanId is only unique inside a segment in some providers (for example SkyWalking)."
+          },
+          "spanId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "parentSpanId": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Null when this span is a root or when the provider cannot express the relation."
+          },
+          "parentSegmentId": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1,
+            "maxLength": 256,
+            "description": "Segment owning parentSpanId. Differs from segmentId for cross-thread and cross-process parent links; together they form the resolvable parent key (parentSegmentId, parentSpanId)."
+          },
+          "serviceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "serviceInstanceId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Asset id of type service_instance when the replica is known; null otherwise. Never inferred from a service-level aggregate."
+          },
+          "operation": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "server",
+              "client",
+              "internal",
+              "producer",
+              "consumer",
+              "unknown"
+            ]
+          },
+          "component": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 100,
+            "description": "Normalized component/plugin id, for example springmvc, jdbc, mariadb, httpclient. Used by correlation rules instead of parsing attribute strings."
+          },
+          "peer": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500,
+            "description": "Normalized peer target for client spans: host:port, or a database/cluster name when the provider reports one. This is the join key for service-to-database correlation."
+          },
+          "layer": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 100,
+            "description": "Upstream layer when exposed, for example HTTP, RPC, DB, MQ."
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          },
+          "durationMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "error": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "attributes": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "maxProperties": 50,
+            "description": "Allowlisted and redacted attributes only. Free-form attributes must not be the sole source of topology or correlation."
+          }
+        },
+        "required": [
+          "segmentId",
+          "spanId",
+          "parentSpanId",
+          "parentSegmentId",
+          "operation",
+          "kind",
+          "component",
+          "peer",
+          "layer",
+          "startTime",
+          "durationMs",
+          "error",
+          "attributes"
+        ]
+      },
+      "TraceListResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceState"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceSummary"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "description": "Contains stored samples, not necessarily all requests. No unsupported full-data extrapolation.",
+        "required": [
+          "requestId",
+          "range",
+          "partial",
+          "sources",
+          "items",
+          "nextCursor"
+        ]
+      },
+      "TraceResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceState"
+            }
+          },
+          "trace": {
+            "$ref": "#/components/schemas/TraceSummary"
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            }
+          }
+        },
+        "required": [
+          "requestId",
+          "partial",
+          "sources",
+          "trace",
+          "spans"
+        ]
+      },
+      "Evidence": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "providerId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "metric_summary",
+              "trace_reference",
+              "alert",
+              "manual_observation"
+            ]
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "assetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "quality": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "partial",
+              "stale",
+              "unknown"
+            ]
+          },
+          "traceReference": {
+            "type": "object",
+            "properties": {
+              "providerId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "traceId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              }
+            },
+            "required": [
+              "providerId",
+              "traceId"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "range",
+          "assetIds",
+          "summary",
+          "quality"
+        ]
+      },
+      "Incident": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assetId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "canonicalRuleId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "acknowledged",
+              "resolved"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ]
+          },
+          "suppressed": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "openedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          },
+          "latestObservedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          },
+          "resolvedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC.",
+            "nullable": true
+          },
+          "providerIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "assetId",
+          "canonicalRuleId",
+          "state",
+          "severity",
+          "suppressed",
+          "summary",
+          "openedAt",
+          "latestObservedAt",
+          "resolvedAt",
+          "providerIds"
+        ]
+      },
+      "IncidentsResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Incident"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "requestId",
+          "items",
+          "nextCursor"
+        ]
+      },
+      "IncidentResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "incident": {
+            "$ref": "#/components/schemas/Incident"
+          }
+        },
+        "required": [
+          "requestId",
+          "incident"
+        ]
+      },
+      "DiagnosisQuery": {
+        "type": "object",
+        "properties": {
+          "assetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 20,
+            "uniqueItems": true
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "includeTraceReferences": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "assetIds",
+          "range"
+        ]
+      },
+      "Correlation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ruleId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "evidenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1
+          },
+          "explanation": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "assessment": {
+            "type": "string",
+            "enum": [
+              "temporal_association",
+              "dependency_association",
+              "unverified"
+            ]
+          }
+        },
+        "description": "An association is not a confirmed cause.",
+        "required": [
+          "id",
+          "ruleId",
+          "evidenceIds",
+          "explanation",
+          "assessment"
+        ]
+      },
+      "DiagnosisResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceState"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "incidents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Incident"
+            }
+          },
+          "correlations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Correlation"
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "requestId",
+          "range",
+          "partial",
+          "sources",
+          "evidence",
+          "incidents",
+          "correlations",
+          "limitations"
+        ]
+      },
+      "ReportRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "assetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 20,
+            "uniqueItems": true
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "evidenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 100,
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "assetIds",
+          "range"
+        ]
+      },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "ready",
+              "failed"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "range": {
+            "$ref": "#/components/schemas/TimeRange"
+          },
+          "assetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "RFC 3339 with timezone; normalized to UTC."
+          },
+          "contentMarkdown": {
+            "type": "string",
+            "nullable": true
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "errorCode": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "title",
+          "range",
+          "assetIds",
+          "createdAt",
+          "contentMarkdown",
+          "limitations"
+        ]
+      },
+      "ReportResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "report": {
+            "$ref": "#/components/schemas/Report"
+          }
+        },
+        "required": [
+          "requestId",
+          "report"
+        ]
+      },
+      "AlertReceipt": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "receiptId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accepted": {
+            "type": "boolean"
+          },
+          "duplicate": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requestId",
+          "receiptId",
+          "accepted",
+          "duplicate"
+        ]
+      }
+    }
+  }
+}
